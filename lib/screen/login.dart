@@ -129,6 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             'Register',
                             style: TextStyle(
+                              color: Color(0xFF5B16D0),
                               fontSize: 18,
                               fontFamily: "Brand Bold",
                             ),

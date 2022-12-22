@@ -17,6 +17,7 @@ import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 import 'model/batch.dart';
 import 'model/course.dart';
 import 'model/student.dart';
+import 'model/teacher.dart';
 
 export 'package:objectbox/objectbox.dart'; // so that callers only have to import this file
 
@@ -59,7 +60,12 @@ final _entities = <ModelEntity>[
             type: 9,
             flags: 0)
       ],
-      relations: <ModelRelation>[],
+      relations: <ModelRelation>[
+        ModelRelation(
+            id: const IdUid(3, 7300534078551415292),
+            name: 'teacher',
+            targetId: const IdUid(4, 6419808036221539960))
+      ],
       backlinks: <ModelBacklink>[]),
   ModelEntity(
       id: const IdUid(3, 8308014377577410811),
@@ -101,7 +107,28 @@ final _entities = <ModelEntity>[
             flags: 0)
       ],
       relations: <ModelRelation>[],
-      backlinks: <ModelBacklink>[])
+      backlinks: <ModelBacklink>[]),
+  ModelEntity(
+      id: const IdUid(4, 6419808036221539960),
+      name: 'Teacher',
+      lastPropertyId: const IdUid(2, 7632470232883244790),
+      flags: 0,
+      properties: <ModelProperty>[
+        ModelProperty(
+            id: const IdUid(1, 8682799342276764539),
+            name: 'teacherId',
+            type: 6,
+            flags: 129),
+        ModelProperty(
+            id: const IdUid(2, 7632470232883244790),
+            name: 'fname',
+            type: 9,
+            flags: 0)
+      ],
+      relations: <ModelRelation>[],
+      backlinks: <ModelBacklink>[
+        ModelBacklink(name: 'course', srcEntity: 'Course', srcField: '')
+      ])
 ];
 
 /// Open an ObjectBox store with the model declared in this file.
@@ -124,14 +151,19 @@ Future<Store> openStore(
 ModelDefinition getObjectBoxModel() {
   final model = ModelInfo(
       entities: _entities,
-      lastEntityId: const IdUid(3, 8308014377577410811),
+      lastEntityId: const IdUid(4, 6419808036221539960),
       lastIndexId: const IdUid(1, 2454483955128625537),
-      lastRelationId: const IdUid(2, 5275283626452299021),
+      lastRelationId: const IdUid(5, 2135833384568934043),
       lastSequenceId: const IdUid(0, 0),
       retiredEntityUids: const [],
       retiredIndexUids: const [],
       retiredPropertyUids: const [8567610968010343169, 771798994406263750],
-      retiredRelationUids: const [3496613033538932246, 5275283626452299021],
+      retiredRelationUids: const [
+        3496613033538932246,
+        5275283626452299021,
+        2135833384568934043,
+        518944372123529066
+      ],
       modelVersion: 5,
       modelVersionParserMinimum: 5,
       version: 1);
@@ -176,7 +208,8 @@ ModelDefinition getObjectBoxModel() {
     Course: EntityDefinition<Course>(
         model: _entities[1],
         toOneRelations: (Course object) => [],
-        toManyRelations: (Course object) => {},
+        toManyRelations: (Course object) =>
+            {RelInfo<Course>.toMany(3, object.courseId): object.teacher},
         getId: (Course object) => object.courseId,
         setId: (Course object, int id) {
           object.courseId = id;
@@ -198,7 +231,8 @@ ModelDefinition getObjectBoxModel() {
                   .vTableGet(buffer, rootOffset, 6, ''),
               courseId:
                   const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0));
-
+          InternalToManyAccess.setRelInfo(object.teacher, store,
+              RelInfo<Course>.toMany(3, object.courseId), store.box<Course>());
           return object;
         }),
     Student: EntityDefinition<Student>(
@@ -243,6 +277,40 @@ ModelDefinition getObjectBoxModel() {
               const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0);
           object.batch.attach(store);
           return object;
+        }),
+    Teacher: EntityDefinition<Teacher>(
+        model: _entities[3],
+        toOneRelations: (Teacher object) => [],
+        toManyRelations: (Teacher object) => {
+              RelInfo<Course>.toManyBacklink(3, object.teacherId): object.course
+            },
+        getId: (Teacher object) => object.teacherId,
+        setId: (Teacher object, int id) {
+          object.teacherId = id;
+        },
+        objectToFB: (Teacher object, fb.Builder fbb) {
+          final fnameOffset = fbb.writeString(object.fname);
+          fbb.startTable(3);
+          fbb.addInt64(0, object.teacherId);
+          fbb.addOffset(1, fnameOffset);
+          fbb.finish(fbb.endTable());
+          return object.teacherId;
+        },
+        objectFromFB: (Store store, ByteData fbData) {
+          final buffer = fb.BufferContext(fbData);
+          final rootOffset = buffer.derefObject(0);
+
+          final object = Teacher(
+              const fb.StringReader(asciiOptimization: true)
+                  .vTableGet(buffer, rootOffset, 6, ''),
+              teacherId:
+                  const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0));
+          InternalToManyAccess.setRelInfo(
+              object.course,
+              store,
+              RelInfo<Course>.toManyBacklink(3, object.teacherId),
+              store.box<Teacher>());
+          return object;
         })
   };
 
@@ -269,6 +337,10 @@ class Course_ {
   /// see [Course.courseName]
   static final courseName =
       QueryStringProperty<Course>(_entities[1].properties[1]);
+
+  /// see [Course.teacher]
+  static final teacher =
+      QueryRelationToMany<Course, Teacher>(_entities[1].relations[0]);
 }
 
 /// [Student] entity fields to define ObjectBox queries.
@@ -294,4 +366,14 @@ class Student_ {
 
   /// see [Student.lname]
   static final lname = QueryStringProperty<Student>(_entities[2].properties[5]);
+}
+
+/// [Teacher] entity fields to define ObjectBox queries.
+class Teacher_ {
+  /// see [Teacher.teacherId]
+  static final teacherId =
+      QueryIntegerProperty<Teacher>(_entities[3].properties[0]);
+
+  /// see [Teacher.fname]
+  static final fname = QueryStringProperty<Teacher>(_entities[3].properties[1]);
 }
